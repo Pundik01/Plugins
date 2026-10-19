@@ -173,14 +173,6 @@
                     name: 'wide'
                 }
             });
-
-            // Принудительно задаём стиль wide, даже если другой плагин
-            // уже выставил свои params.style (extendItemsParams их не перезаписывает)
-            element.results.forEach(function (item) {
-                if (!item || typeof item !== 'object') return;
-                item.params = item.params || {};
-                item.params.style = Object.assign({}, item.params.style, { name: 'wide' });
-            });
         }
     }
 
@@ -200,10 +192,6 @@
         // Помечаем ленту: для неё снимаем min-height у scroll__body (см. стили)
         const line = element.closest ? element.closest('.items-line') : null;
         if (line) line.classList.add('new-interface-line--forced');
-
-        card.params = card.params || {};
-        card.params.style = card.params.style || {};
-        card.params.style.name = 'wide';
 
         // широкая карточка показывает backdrop, а не постер
         const img = element.querySelector('.card__img');
@@ -518,7 +506,6 @@
             font-size: 1.05em;
             font-weight: 500;
             line-height: 1.4;
-            /* padding-bottom: 0.15em; */
             color: #fff;
             display: block;
             text-align: left;
