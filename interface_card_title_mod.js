@@ -518,7 +518,7 @@
             font-size: 1.05em;
             font-weight: 500;
             line-height: 1.4;
-            padding-bottom: 0.15em;
+            /* padding-bottom: 0.15em; */
             color: #fff;
             display: block;
             text-align: left;
