@@ -24,12 +24,8 @@
     // Если нужно узнать component экрана, включите отладку:
     //   localStorage.setItem('hide_type_debug', '1')
     var COMPONENTS = [
-        'mytorrents'         // Торренты
-    ];
-    // Строгие шаблоны для групп похожих компонентов. Шаблон должен совпасть
-    // со всем именем целиком (поэтому ^ в начале и $ в конце).
-    var PATTERNS = [
-        /^sisi_(view_)?lampac$/i   // Клубничка: sisi_lampac и sisi_view_lampac
+        'mytorrents',        // Торренты
+        'sisi_lampac'   // Клубничка
     ];
     // Через сколько мс после открытия экрана повторять попытку, если корень
     // экрана ещё не готов. Останавливается сразу после успеха.
@@ -54,12 +50,7 @@
 
     function isTarget(a) {
         if (!a) return false;
-        var comp = String(a.component || '');
-        if (list.indexOf(comp.toLowerCase()) !== -1) return true;
-        for (var i = 0; i < PATTERNS.length; i++) {
-            if (PATTERNS[i].test(comp)) return true;
-        }
-        return false;
+        return list.indexOf(String(a.component || '').toLowerCase()) !== -1;
     }
 
     function getRoot(a) {
