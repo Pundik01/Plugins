@@ -1,12 +1,13 @@
 /*
- * Lampa plugin: hide_type_labels
+ * Lampa plugin: hide_type_labels (облегчённая версия)
  * Убирает метки типа на карточках (.card__type: «Фильм», «Сериал», «MOV», «TV»)
  * в разделах «Торренты» и «Клубничка». В остальных разделах метки остаются.
  *
- * Как работает: у активного экрана (Lampa.Activity.active()) проверяются
+ * Как работает: при открытии экрана у активной Activity проверяются
  * component / title / url. Если экран подходит под правила ниже, на его корневой
- * элемент вешается класс, а CSS скрывает внутри него все .card__type.
- * Карточки, которые подгружаются позже (прокрутка, пагинация), скрываются сами.
+ * элемент один раз вешается класс, а CSS скрывает внутри него все .card__type.
+ * Карточки, подгружаемые позже (прокрутка, пагинация), скрываются самим CSS —
+ * скрипт для этого не работает. Слежения за DOM нет, поэтому нагрузка минимальна.
  */
 (function () {
     'use strict';
@@ -15,14 +16,18 @@
     window.plugin_hide_type_labels_ready = true;
 
     // ===== НАСТРОЙКА ======================================================
-    // Названия компонентов (Lampa.Activity.active().component), url и заголовков,
-    // где метки нужно скрыть. Если какой-то экран «Клубнички» не подхватился,
-    // включите отладку (см. ниже), посмотрите его component и допишите сюда.
+    // Если какой-то экран не подхватился, включите отладку:
+    //   localStorage.setItem('hide_type_debug', '1')
+    // посмотрите его component и допишите сюда.
     var COMPONENT_RE = /torrent|sisi|porn|xxx|adult|bongacams|chaturbate|xvideos|xhamster|eporner|spankbang|ebalovo|pornhub/i;
     var TITLE_RE     = /клубничк|торрент|torrent|18\+/i;
+    // Через сколько мс после открытия экрана повторять попытку, если корень
+    // экрана ещё не готов. Останавливается сразу после успеха.
+    var RETRY_DELAYS = [0, 250, 700, 1500, 3000];
     // ======================================================================
 
     var CLASS_NAME = 'hide-type-labels';
+    var timers = [];
 
     function addStyle() {
         if (document.getElementById('hide-type-labels-style')) return;
@@ -61,46 +66,41 @@
         } catch (e) {}
     }
 
+    // true — экран обработан (не целевой или класс уже стоит)
     function apply() {
         var a = activeActivity();
-        if (!a) return;
-        if (isTarget(a)) {
-            var root = getRoot(a);
-            if (root && root.length && !root.hasClass(CLASS_NAME)) root.addClass(CLASS_NAME);
-        }
+        if (!a) return false;
+        if (!isTarget(a)) return true;
+        var root = getRoot(a);
+        if (!root || !root.length) return false;
+        if (!root.hasClass(CLASS_NAME)) root.addClass(CLASS_NAME);
+        return true;
     }
 
-    var timer = null;
-    function schedule() {
-        if (timer) return;
-        timer = setTimeout(function () {
-            timer = null;
-            apply();
-        }, 150);
+    function clearTimers() {
+        while (timers.length) clearTimeout(timers.pop());
+    }
+
+    function run() {
+        clearTimers();
+        debug(activeActivity());
+        RETRY_DELAYS.forEach(function (delay) {
+            timers.push(setTimeout(function () {
+                if (apply()) clearTimers();
+            }, delay));
+        });
     }
 
     function start() {
         addStyle();
 
-        // Событие смены экрана
         try {
             Lampa.Listener.follow('activity', function (e) {
-                if (e && (e.type === 'start' || e.type === 'archive' || e.type === 'create')) {
-                    debug(activeActivity());
-                    schedule();
-                    setTimeout(apply, 600);
-                    setTimeout(apply, 1500);
-                }
+                if (e && (e.type === 'start' || e.type === 'archive' || e.type === 'create')) run();
             });
         } catch (e) {}
 
-        // Страховка: следим за DOM, пока экран достраивается
-        try {
-            var obs = new MutationObserver(schedule);
-            obs.observe(document.body, { childList: true, subtree: true });
-        } catch (e) {}
-
-        apply();
+        run();
     }
 
     if (window.appready) start();
