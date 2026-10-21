@@ -1,13 +1,15 @@
 /*
- * Lampa plugin: hide_type_labels (облегчённая версия)
+ * Lampa plugin: hide_type_labels (облегчённая версия, строгие правила)
  * Убирает метки типа на карточках (.card__type: «Фильм», «Сериал», «MOV», «TV»)
- * в разделах «Торренты» и «Клубничка». В остальных разделах метки остаются.
+ * только в разделах «Торренты» и «Клубничка». В остальных разделах метки остаются.
  *
- * Как работает: при открытии экрана у активной Activity проверяются
- * component / title / url. Если экран подходит под правила ниже, на его корневой
- * элемент один раз вешается класс, а CSS скрывает внутри него все .card__type.
+ * Как работает: при открытии экрана у активной Activity проверяется component.
+ * Если он точно совпадает с одним из имён в списке COMPONENTS, на корневой элемент
+ * экрана один раз вешается класс, а CSS скрывает внутри него все .card__type.
  * Карточки, подгружаемые позже (прокрутка, пагинация), скрываются самим CSS —
  * скрипт для этого не работает. Слежения за DOM нет, поэтому нагрузка минимальна.
+ * Заголовок и url экрана не проверяются, поэтому смена языка интерфейса
+ * на работу плагина не влияет.
  */
 (function () {
     'use strict';
@@ -16,11 +18,15 @@
     window.plugin_hide_type_labels_ready = true;
 
     // ===== НАСТРОЙКА ======================================================
-    // Если какой-то экран не подхватился, включите отладку:
+    // Точные имена компонентов (Lampa.Activity.active().component),
+    // в которых нужно скрыть метки. Сравнение строгое, без учёта регистра.
+    // Чтобы добавить раздел, впишите его component в этот список.
+    // Если нужно узнать component экрана, включите отладку:
     //   localStorage.setItem('hide_type_debug', '1')
-    // посмотрите его component и допишите сюда.
-    var COMPONENT_RE = /torrent|sisi|porn|xxx|adult|bongacams|chaturbate|xvideos|xhamster|eporner|spankbang|ebalovo|pornhub/i;
-    var TITLE_RE     = /клубничк|торрент|torrent|18\+/i;
+    var COMPONENTS = [
+        'mytorrents',        // Торренты
+        'sisi_view_lampac'   // Клубничка
+    ];
     // Через сколько мс после открытия экрана повторять попытку, если корень
     // экрана ещё не готов. Останавливается сразу после успеха.
     var RETRY_DELAYS = [0, 250, 700, 1500, 3000];
@@ -28,6 +34,7 @@
 
     var CLASS_NAME = 'hide-type-labels';
     var timers = [];
+    var list = COMPONENTS.map(function (c) { return String(c).toLowerCase(); });
 
     function addStyle() {
         if (document.getElementById('hide-type-labels-style')) return;
@@ -43,10 +50,7 @@
 
     function isTarget(a) {
         if (!a) return false;
-        var comp  = String(a.component || '');
-        var title = String(a.title || '');
-        var url   = String(a.url || '');
-        return COMPONENT_RE.test(comp) || TITLE_RE.test(title) || COMPONENT_RE.test(url);
+        return list.indexOf(String(a.component || '').toLowerCase()) !== -1;
     }
 
     function getRoot(a) {
@@ -59,9 +63,8 @@
     function debug(a) {
         try {
             if (localStorage.getItem('hide_type_debug') !== '1') return;
-            var msg = 'component=' + (a && a.component) + ' | title=' + (a && a.title) +
-                      ' | target=' + isTarget(a);
-            console.log('[hide_type_labels]', msg, a && a.url);
+            var msg = 'component=' + (a && a.component) + ' | target=' + isTarget(a);
+            console.log('[hide_type_labels]', msg);
             if (Lampa.Noty) Lampa.Noty.show(msg);
         } catch (e) {}
     }
